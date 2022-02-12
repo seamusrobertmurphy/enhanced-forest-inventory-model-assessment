@@ -10,10 +10,8 @@ output:
     df_print: tibble
     keep_md: TRUE
   zotero: TRUE
+  latex_engine: xelatex
   
-  
-
-  pdf_document: default
 bibliography: references.bib
 ---
 
@@ -39,7 +37,7 @@ The exported table of contents below presents a tentative pipeline of our workfl
 
 # Import
 
-## Import permanent sample plots in .csv format
+## Import permanent sample plot data
 
 Import permanent sample plot data in csv format. Here and for other data sourcing we need to set our working directory to where the csv dataset is stored in our local folder. That is because when working with Rmarkdown.Rmd files and github repositories, the working directory will reset back to the root folder where the repo is synced to once the code chunk is passed. This means we can store the data privately twice over, so no raw data is saved on github nor on any shared drive folder. Though, shared static data sources are recommended for click-&-run outputs (need to discuss). This is done using the following code:
 
@@ -51,7 +49,7 @@ print(as_tibble(faib_psp), n = 10)
 #DT::datatable(faib_psp, rownames = FALSE, filter="top", options = list(pageLength = 5, scrollX=T))
 ```
 
-## Import AOI shapefile from BC Geographic Warehouse
+## Import AOI shapefile
 
 Some trial and error needed to find the working link for direct download+imports from the BC Geographic Warehouse (BCGW). You can find the working link through the auto-generated email sent from iMapBC with subject line 'assembled'. You need to open up the webpage that the emailed link forwards to and then copy the working link from your browser. In chrome, this takes a third step. Its easy once you look for the link that has the extension '.zip' at the end.
 
@@ -72,7 +70,7 @@ aoi_sf = aoi_sf[1, "AOI_Boundary"]
 plot(aoi_sf)
 ```
 
-## Import VRI layers from BC Geographic Warehouse to derive species, stems, and mask rasters
+## Import VRI data and derive species, stems, and mask rasters
 
 Instead of the BCGW custom download, we used the permanent link to the static data source of the Vegetation Resources Inventory dataset here. This includes the usual GIS package of shapefiles and geodatabase which we transform into simple features, from which we then extract our target layers using the 'subset' function. It is useful to consider and treat simple features just as dataframe objects but with more features/information attached like sticky geometry, table rules or matrix indices. For rasteriize operations, we generated a spatRaster template and fitted using the line 'touches' argument to avoid any void edges. Two good resources on manipulating simple features available just below.
 
@@ -461,6 +459,8 @@ car::residualPlots(elev_wsvha_lm, terms= ~ 1 | species_class, cex=0.1, pch=19)
 
 Six predictors exhibited non-normal distributions with left-leaning skewness (*W*, p\<0.001) and five predictors produced non-constant variance against the response variable (*B*, p\<0.001). Residuals showed increasing trends and patterns of funnelling that suggested anomalies were clustered among larger fitted values or among stands with higher wsvha values. In addition, significantly negative influences were observed by slope and stemsha on wsvha, while initial modelling generated negative value estimates confirming need for data normalizations (wsvha\<0.00m3/ha). In response, modelled data was treated with three Preprocess functions from the caret package. The 'center' method was used to subtract the mean of the predictors data from the predictor values and the 'scale' method was used to divide them by their standard deviation. A 'BoxCox' transformation applied an exponential lambda to positive values to coerce a Gaussian distribution as presented in the equation below:
 
+$X(\lambda)\begin{cases}\frac{x^{\lambda}-1}{\lambda} & \Leftrightarrow \lambda \neq 0\\\\logx & \Leftrightarrow \lambda = 0\end{cases}$
+
 Data transformations were implementated iteratively with each model fitting using 'caret' model tuning functions as shown in the following section.
 
 # Model
@@ -472,7 +472,6 @@ Performance metrics were reported regarding Mean Absolute Error (MAE), Root Mean
 ![Hyperparameter tuning and model performance metrics; MAE: Mean absolute error, RMSE: Root squared mean error, RMSEratio: Root squared mean error ratio (RMSEfull/RMSEcv), Mtry: Number of variables at each split, Ntree: maximum number of decisions trees 𝜺 = Epsilon, 𝜸 = Gamma, C = Cost; 𝞪 = Alpha, ƛ = Lambda.](Data/models_table_calibri_feb10.png "Table 1")
 
 Two Support Vector Machine (SVM) algorithms, which were fitted with a radial and linear kernel, were calibrated using the same tuning grid that tested for optimal cost parameter values in the range of 1 and 20 and scanned for optimal gamma parameter values between -1 and +1. Tuning produced varied parameters between the two SVM algorithms, which may explain why the linear kernel produced such high bias (RMSEratio = 0.193). SVM kernels are sensitive to larger gamma settings that can limit the area of influence of support vectors beyond cost effects (Dewi and Cheng, 2019). In addition, performances greatly improved with SVM models when an epsilon buffer was added to the tuning grid (𝜺 = 0.02) to provide a penalty-free zone across the training folds (Carasco et al 2019). However, as model accuracy increased (RMSE=5.877m3/ha) so too did model bias (RMSEratio 0.594). Random Forest (RF) models were calibrated with two hyperparameters using a grid search of Mtry between 2 and 10 variables at each split over two regression trees consisting of 50 and 500 decision branches.
-
 
 ## Model 1: 'M1.svm.radial'
 
@@ -514,7 +513,6 @@ tunedModel_svm_m2_full_RMSE = RMSE(tunedModel_svm_m2, y_m2)
 tunedModel_svm_m2_full_RMSEratio = tunedModel_svm_m2_full_RMSE/tunedModel_svm_m2_test_RMSE
 print(summary(tunedModel_svm_m2_full))
 ```
-
 
 # Visualize
 
