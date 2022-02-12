@@ -10,6 +10,7 @@ output:
     df_print: tibble
     keep_md: TRUE
   zotero: TRUE
+  latex_engine: xelatex
   
 bibliography: references.bib
 ---
@@ -63,7 +64,7 @@ print(as_tibble(faib_psp), n = 10)
 #DT::datatable(faib_psp, rownames = FALSE, filter="top", options = list(pageLength = 5, scrollX=T))
 ```
 
-## Import AOI shapefile 
+## Import AOI shapefile
 
 Some trial and error needed to find the working link for direct download+imports from the BC Geographic Warehouse (BCGW). You can find the working link through the auto-generated email sent from iMapBC with subject line 'assembled'. You need to open up the webpage that the emailed link forwards to and then copy the working link from your browser. In chrome, this takes a third step. Its easy once you look for the link that has the extension '.zip' at the end.
 
@@ -116,7 +117,7 @@ wildfire_sf = wildfire_sf["FIRE_YEAR"]
 wildfire_aoi = wildfire_sf$FIRE_YEAR > 2000
 wildfire_aoi = st_intersection(st_make_valid(wildfire_sf), aoi_sf)
 vri_species_aoi = st_intersection(st_make_valid(vri_species), aoi_sf)
-#vri_species_aoi$SPEC_CD_1 = as.factor(vri_species_aoi$SPEC_CD_1)
+vri_species_aoi$SPEC_CD_1 = as.factor(vri_species_aoi$SPEC_CD_1)
 vri_species_aoi =  filter(vri_species_aoi, SPEC_CD_1=='BL' | SPEC_CD_1=='FD' |SPEC_CD_1=='FDI' | SPEC_CD_1=='PL' | SPEC_CD_1=='PLI' | SPEC_CD_1=='SE' | SPEC_CD_1=='SW' | SPEC_CD_1=='SX')
 vri_species_aoi = rename(vri_species_aoi, species_class = SPEC_CD_1)
 vri_species_aoi$species_class = recode(vri_species_aoi$species_class, 
@@ -382,6 +383,7 @@ Spatial covariates were then transformed back from spatRasters to rasters and as
 
 
 ```r
+library(Rcpp)
 names(elev) = "elev"
 names(slope) = "slope"
 names(asp_cos) = "asp_cos"
@@ -569,18 +571,18 @@ car::residualPlots(elev_wsvha_lm, terms= ~ 1 | species_class, cex=0.1, pch=19)
 
 Six predictors exhibited non-normal distributions with left-leaning skewness (*W*, p\<0.001) and five predictors produced non-constant variance against the response variable (*B*, p\<0.001). Residuals showed increasing trends and patterns of funnelling that suggested anomalies were clustered among larger fitted values or among stands with higher wsvha values. In addition, significantly negative influences were observed by slope and stemsha on wsvha, while initial modelling generated negative value estimates confirming need for data normalizations (wsvha\<0.00m3/ha). In response, modelled data was treated with three Preprocess functions from the caret package. The 'center' method was used to subtract the mean of the predictors data from the predictor values and the 'scale' method was used to divide them by their standard deviation. A 'BoxCox' transformation applied an exponential lambda to positive values to coerce a Gaussian distribution as presented in the equation below:
 
+$X(\lambda)\begin{cases}\frac{x^{\lambda}-1}{\lambda} & \Leftrightarrow \lambda \neq 0\\\\logx & \Leftrightarrow \lambda = 0\end{cases}$
+
 Data transformations were implementated iteratively with each model fitting using 'caret' model tuning functions as shown in the following section.
 
 # Model
 
 Model 1 and model 2 were fitted with the ransformed 'pre-processed' permanent sample plot data and calibrated with nine different algorithms (Table 1). Models were trained using a 10 k-fold cross validation technique, which divided the dataset into 10 groups of 10 data blocks to generate aggregated estimates from across the 100 data folds. This was repeated 3 times with training folds starting at different origins each time.
 
-Performance metrics were reported regarding Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and Root Mean Squared RMSEratio in order to account for overall model accuracy, level of model precision, and model bias, respectively.. Using these metrics, algorithms were optimized using hyper-parameter tuning (Table 1).
+Performance metrics were reported regarding Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and Root Mean Squared Ratio (RMSEratio) in order to account for overall model accuracy, level of model precision, and model bias, respectively.. Using these metrics, algorithms were optimized using hyper-parameter tuning (Table 1).
 
-![Hyperparameter tuning and model performance metrics; MAE: Mean absolute error, RMSE: Root squared mean error, RMSEratio: Root squared mean error ratio (RMSEfull/RMSEcv), Mtry: Number of variables at each split, Ntree: maximum number of decisions trees 𝜺 = Epsilon, 𝜸 = Gamma, C = Cost; 𝞪 = Alpha, ƛ = Lambda.](Data/models_table_calibri_feb10.png "Table 1")
-
-Two Support Vector Machine (SVM) algorithms, which were fitted with a radial and linear kernel, were calibrated using the same tuning grid that tested for optimal cost parameter values in the range of 1 and 20 and scanned for optimal gamma parameter values between -1 and +1. Tuning produced varied parameters between the two SVM algorithms, which may explain why the linear kernel produced such high bias (RMSEratio = 0.193). SVM kernels are sensitive to larger gamma settings that can limit the area of influence of support vectors beyond cost effects (Dewi and Cheng, 2019). In addition, performances greatly improved with SVM models when an epsilon buffer was added to the tuning grid (𝜺 = 0.02) to provide a penalty-free zone across the training folds (Carasco et al 2019). However, as model accuracy increased (RMSE=5.877m3/ha) so too did model bias (RMSEratio 0.594). Random Forest (RF) models were calibrated with two hyperparameters using a grid search of Mtry between 2 and 10 variables at each split over two regression trees consisting of 50 and 500 decision branches.
-
+Two Support Vector Machine (SVM) algorithms were fitted with a radial and linear kernel, which were tuned using the same tuning grid that tested for optimal cost values in the range of between 1 and 20 and scanned for optimal gamma values between -1 and +1.  Random Forest (RF) models were calibrated with two hyperparameters using a grid search of Mtry between 2 and 10 variables at each split over two regression trees consisting of 50 and 500 decision branches. An EnsembleElastic 
+Net model was fitted with a generalized additive linearized model, which was tuned based on optomized results of three foundational models including linear model, 
 
 ## Model 1: 'M1.svm.radial'
 
@@ -624,7 +626,23 @@ tunedModel_svm_m2_full_RMSEratio = tunedModel_svm_m2_full_RMSE/tunedModel_svm_m2
 print(summary(tunedModel_svm_m2_full))
 ```
 
-
 # Visualize
 
-# Outputs
+Four best-performing models, including the Random Forest 50-Tree model, the two Support Vector Radial Kernel models, and the Ensemble Elastic Net Model, were applied to covariate stacks and used to spatially predict a wsvha raster. Outputs were saved in GeoTiff format in the ‘Results’ local folder available on project drive and were presented below for visual comparison.
+
+
+```r
+library(prettymapr)
+tunedModel_svm_m2_to_raster <- predict(covs_m2, tunedModel_svm_m2_full)
+writeRaster(tunedModel_svm_m2_to_raster, filename = "./Results/tunedModel_svm_m2_to_raster.tif", overwrite=TRUE)
+tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_to_raster, 
+  main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
+  Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75)
+title(main ="MAE:9.424\nRMSE:10.830\nRMSEratio:0.776\ngamma=0.5\nepsilon=0.10\nC=20", 
+      adj = 0.05, line = -5, cex.main = 0.75)
+addscalebar(plotepsg=3005)
+addnortharrow(pos = "topright", scale=0.75)
+```
+
+![](0_EFI-TCC-modelling-pipeline_files/figure-html/unnamed-chunk-14-1.png)<!-- -->
+
