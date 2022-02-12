@@ -469,9 +469,8 @@ Model 1 and model 2 were fitted with the ransformed 'pre-processed' permanent sa
 
 Performance metrics were reported regarding Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and Root Mean Squared Ratio (RMSEratio) in order to account for overall model accuracy, level of model precision, and model bias, respectively.. Using these metrics, algorithms were optimized using hyper-parameter tuning (Table 1).
 
-![Hyperparameter tuning and model performance metrics; MAE: Mean absolute error, RMSE: Root squared mean error, RMSEratio: Root squared mean error ratio (RMSEfull/RMSEcv), Mtry: Number of variables at each split, Ntree: maximum number of decisions trees 𝜺 = Epsilon, 𝜸 = Gamma, C = Cost; 𝞪 = Alpha, ƛ = Lambda.](Data/models_table_calibri_feb10.png "Table 1")
-
-Two Support Vector Machine (SVM) algorithms, which were fitted with a radial and linear kernel, were calibrated using the same tuning grid that tested for optimal cost parameter values in the range of 1 and 20 and scanned for optimal gamma parameter values between -1 and +1. Tuning produced varied parameters between the two SVM algorithms, which may explain why the linear kernel produced such high bias (RMSEratio = 0.193). SVM kernels are sensitive to larger gamma settings that can limit the area of influence of support vectors beyond cost effects (Dewi and Cheng, 2019). In addition, performances greatly improved with SVM models when an epsilon buffer was added to the tuning grid (𝜺 = 0.02) to provide a penalty-free zone across the training folds (Carasco et al 2019). However, as model accuracy increased (RMSE=5.877m3/ha) so too did model bias (RMSEratio 0.594). Random Forest (RF) models were calibrated with two hyperparameters using a grid search of Mtry between 2 and 10 variables at each split over two regression trees consisting of 50 and 500 decision branches.
+Two Support Vector Machine (SVM) algorithms were fitted with a radial and linear kernel, which were tuned using the same tuning grid that tested for optimal cost values in the range of between 1 and 20 and scanned for optimal gamma values between -1 and +1.  Random Forest (RF) models were calibrated with two hyperparameters using a grid search of Mtry between 2 and 10 variables at each split over two regression trees consisting of 50 and 500 decision branches. An EnsembleElastic 
+Net model was fitted with a generalized additive linearized model, which was tuned based on optomized results of three foundational models including linear model, 
 
 ## Model 1: 'M1.svm.radial'
 
@@ -516,4 +515,19 @@ print(summary(tunedModel_svm_m2_full))
 
 # Visualize
 
-# Outputs
+Four best-performing models, including the Random Forest 50-Tree model, the two Support Vector Radial Kernel models, and the Ensemble Elastic Net Model, were applied to covariate stacks and used to spatially predict a wsvha raster. Outputs were saved in GeoTiff format in the ‘Results’ local folder available on project drive and were presented below for visual comparison.
+
+```{r eval=TRUE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
+library(prettymapr)
+tunedModel_svm_m2_to_raster <- predict(covs_m2, tunedModel_svm_m2_full)
+writeRaster(tunedModel_svm_m2_to_raster, filename = "./Results/tunedModel_svm_m2_to_raster.tif", overwrite=TRUE)
+tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_to_raster, 
+  main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
+  Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75)
+title(main ="MAE:9.424\nRMSE:10.830\nRMSEratio:0.776\ngamma=0.5\nepsilon=0.10\nC=20", 
+      adj = 0.05, line = -5, cex.main = 0.75)
+addscalebar(plotepsg=3005)
+addnortharrow(pos = "topright", scale=0.75)
+
+```
+
