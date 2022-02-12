@@ -80,7 +80,7 @@ Perhaps worth mentioning also that R doesn't seem to like interruptions during z
 
 \* Chapter 3 from Robin LoveLace's book 'Geocomputation in R' [link here](https://geocompr.robinlovelace.net/attr.html)
 
-```{r eval=TRUE, echo=TRUE, error=FALSE, fig.show="hold", message=FALSE, warning=FALSE, cache=TRUE, out.width="33%"}
+```{r eval=TRUE, echo=TRUE, error=FALSE, fig.show="hold", message=FALSE, warning=FALSE, cache=TRUE, out.width="33%", cache=TRUE}
 library(raster)
 library(terra)
 #download.file(url = "https://pub.data.gov.bc.ca/datasets/02dba161-fdb7-48ae-a4bb-bd6ef017c36d/2019/VEG_COMP_LYR_R1_POLY_2019.gdb.zip", destfile = "./Data/vri_layers.zip", overwrite=TRUE)
@@ -98,7 +98,7 @@ wildfire_sf = wildfire_sf["FIRE_YEAR"]
 wildfire_aoi = wildfire_sf$FIRE_YEAR > 2000
 wildfire_aoi = st_intersection(st_make_valid(wildfire_sf), aoi_sf)
 vri_species_aoi = st_intersection(st_make_valid(vri_species), aoi_sf)
-#vri_species_aoi$SPEC_CD_1 = as.factor(vri_species_aoi$SPEC_CD_1)
+vri_species_aoi$SPEC_CD_1 = as.factor(vri_species_aoi$SPEC_CD_1)
 vri_species_aoi =  filter(vri_species_aoi, SPEC_CD_1=='BL' | SPEC_CD_1=='FD' |SPEC_CD_1=='FDI' | SPEC_CD_1=='PL' | SPEC_CD_1=='PLI' | SPEC_CD_1=='SE' | SPEC_CD_1=='SW' | SPEC_CD_1=='SX')
 vri_species_aoi = rename(vri_species_aoi, species_class = SPEC_CD_1)
 vri_species_aoi$species_class = recode(vri_species_aoi$species_class, 
@@ -307,6 +307,7 @@ plot(stems, main="Stems/ha")
 Spatial covariates were then transformed back from spatRasters to rasters and assembled as raster stacks (covs_m1 and covs_m2). Maybe worth checking again here the naming of rasters before converting and stacking. If needed, the following chunk can be used to rename spatRasters:
 
 ```{r eval=TRUE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, fig.show="hold", out.width="33%"}
+library(Rcpp)
 names(elev) = "elev"
 names(slope) = "slope"
 names(asp_cos) = "asp_cos"
