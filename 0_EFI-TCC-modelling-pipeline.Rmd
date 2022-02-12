@@ -467,7 +467,7 @@ Data transformations were implementated iteratively with each model fitting usin
 
 Model 1 and model 2 were fitted with the ransformed 'pre-processed' permanent sample plot data and calibrated with nine different algorithms (Table 1). Models were trained using a 10 k-fold cross validation technique, which divided the dataset into 10 groups of 10 data blocks to generate aggregated estimates from across the 100 data folds. This was repeated 3 times with training folds starting at different origins each time.
 
-Performance metrics were reported regarding Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and Root Mean Squared RMSEratio in order to account for overall model accuracy, level of model precision, and model bias, respectively.. Using these metrics, algorithms were optimized using hyper-parameter tuning (Table 1).
+Performance metrics were reported regarding Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and Root Mean Squared Ratio (RMSEratio) in order to account for overall model accuracy, level of model precision, and model bias, respectively.. Using these metrics, algorithms were optimized using hyper-parameter tuning (Table 1).
 
 ![Hyperparameter tuning and model performance metrics; MAE: Mean absolute error, RMSE: Root squared mean error, RMSEratio: Root squared mean error ratio (RMSEfull/RMSEcv), Mtry: Number of variables at each split, Ntree: maximum number of decisions trees 𝜺 = Epsilon, 𝜸 = Gamma, C = Cost; 𝞪 = Alpha, ƛ = Lambda.](Data/models_table_calibri_feb10.png "Table 1")
 
