@@ -20,7 +20,13 @@ SRM-LQ
         transformations](#explore-data-transformations)
     -   [3.2 Apply data transformations](#apply-data-transformations)
 -   [4 Model](#model)
-    -   [4.1 Model 1: ‘M1.svm.radial’](#model-1-m1svmradial)
+    -   [4.1 Model 1: ‘M1.svm.radial.*𝝐*’](#model-1-m1svmradial𝝐)
+    -   [4.2 Model 1: ‘M1.svm.radial’](#model-1-m1svmradial)
+    -   [4.3 Model 1: ‘M1.svm.linear’](#model-1-m1svmlinear)
+    -   [4.4 Model 1: ‘M1.glm.caret’](#model-1-m1glmcaret)
+    -   [4.5 Model 1: ‘M1.RF.e1071’](#model-1-m1rfe1071)
+    -   [4.6 Model 1: ‘M1.RF.caret’](#model-1-m1rfcaret)
+    -   [4.7 Model 1: ‘M1.ensemble’](#model-1-m1ensemble)
 -   [5 Visualize](#visualize)
 
 ## Action
@@ -684,7 +690,7 @@ by their standard deviation. A ‘BoxCox’ transformation applied an
 exponential lambda to positive values to coerce a Gaussian distribution
 as presented in the equation below:
 
-$X(\\lambda)\\begin{cases}\\frac{x^{\\lambda}-1}{\\lambda} & \\Leftrightarrow \\lambda \\neq 0\\\\\\\\logx & \\Leftrightarrow \\lambda = 0\\end{cases}$
+$X(\\\\lambda)\\\\begin{cases}\\\\frac{x^{\\\\lambda}-1}{\\\\lambda} & \\\\Leftrightarrow \\\\lambda \\\\neq 0\\\\\\\\logx & \\\\Leftrightarrow \\\\lambda = 0\\\\end{cases}$
 
 Data transformations were implementated iteratively with each model
 fitting using ‘caret’ model tuning functions as shown in the following
@@ -714,7 +720,7 @@ Mean absolute error, RMSE: Root squared mean error, RMSEratio: Root
 squared mean error ratio (RMSEfull/RMSEcv), Mtry: Number of variables at
 each split, Ntree: maximum number of decisions trees 𝜺 = Epsilon, 𝜸 =
 Gamma, C = Cost; 𝞪 = Alpha, ƛ =
-Lambda.](Data/models_table_calibri_feb10.png "Table 1")
+Lambda.](0_EFI-TCC-modelling-pipeline_files/models_table_calibri_feb10.png "Table 1")
 
 Two Support Vector Machine (SVM) algorithms were fitted with a radial
 and linear kernel, which were tuned using the same tuning grid that
@@ -727,7 +733,7 @@ was fitted with a generalized additive linearized model, which was tuned
 based on optomized results of three foundational models including linear
 model,
 
-## 4.1 Model 1: ‘M1.svm.radial’
+## 4.1 Model 1: ‘M1.svm.radial.*𝝐*’
 
 ``` r
 library(e1071)
@@ -735,7 +741,38 @@ library(caret)
 library(caretEnsemble)
 library(randomForest)
 library(DescTools)
+library(ModelMetrics)
+# full-fitted
+tuneResult_svm_m2_full_eps <- tune(svm, X_m2, y_m2,
+  ranges = list(epsilon = seq(0.02,0.1,0.2), cost = c(1,5,7,15,20), gamma = 2^(-1:1)),
+  tunecontrol = tune.control(cross = 10),
+  preProcess = c("BoxCox","center","scale"))
+tunedModel_svm_m2_full_eps <- tuneResult_svm_m2_full_eps$best.model
+save(tunedModel_svm_m2_full_eps, file = "./Results/tunedModel_svm_m2_full_eps.RData")
+tunedModel_svm_m2_eps = predict(
+  tunedModel_svm_m2_full_eps,
+  X_m2, y_m2)
 
+# train-fitted
+tuneResult_svm_m2_train_eps <- tune(svm, X_train_m2, y_train_m2,
+  ranges = list(epsilon = seq(0.02,0.1,0.2), cost = c(5,7,15,20), gamma = 2^(-1:1)),
+  tunecontrol = tune.control(cross = 10),
+  preProcess = c("BoxCox","center","scale"))
+tunedModel_svm_m2_train_eps <- tuneResult_svm_m2_train_eps$best.model
+# test-fitted
+tunedModel_svm_m2_test_eps = predict(tuneResult_svm_m2_train_eps,X_test_m2, y_test_m2)
+#performance metrics
+tunedModel_svm_m2_test_eps_MAE = MAE(tunedModel_svm_m2_test_eps, y_test_m2)
+tunedModel_svm_m2_test_eps_RMSE = RMSE(tunedModel_svm_m2_test_eps, y_test_m2)
+tunedModel_svm_m2_full_eps_MAE = MAE(tunedModel_svm_m2_eps, y_m2)
+tunedModel_svm_m2_full_eps_RMSE = RMSE(tunedModel_svm_m2_eps, y_m2)
+tunedModel_svm_m2_full_epsRMSEratio = tunedModel_svm_m2_full_eps_RMSE/tunedModel_svm_m2_test_eps_RMSE
+print(summary(tunedModel_svm_m2_full))
+```
+
+## 4.2 Model 1: ‘M1.svm.radial’
+
+``` r
 # full-fitted
 tuneResult_svm_m2_full <- tune(svm, X_m2, y_m2, 
   ranges = list(cost = c(1,5,7,15,20), gamma = 2^(-1:1)),
@@ -743,10 +780,7 @@ tuneResult_svm_m2_full <- tune(svm, X_m2, y_m2,
   preProcess = c("BoxCox","center","scale"))
 tunedModel_svm_m2_full <- tuneResult_svm_m2_full$best.model
 save(tunedModel_svm_m2_full, file = "./Models/tunedModel_svm_m2_full.RData")
-tunedModel_svm_m2 = predict(
-  tunedModel_svm_m2_full,
-  X_m2, y_m2)
-
+tunedModel_svm_m2 = predict(tunedModel_svm_m2_full, X_m2, y_m2)
 # train-fitted
 tuneResult_svm_m2_train <- tune(
   svm, X_train_m2, y_train_m2,
@@ -754,18 +788,150 @@ tuneResult_svm_m2_train <- tune(
   tunecontrol = tune.control(cross = 10,  nrepeat = 5),
   preProcess = c("BoxCox","center","scale"))
 tunedModel_svm_m2_train <- tuneResult_svm_m2_train$best.model
-
 # test-fitted
-tunedModel_svm_m2_test = predict(
-  tunedModel_svm_m2_train,
-  X_test_m2, y_test_m2)
-
+tunedModel_svm_m2_test = predict(tunedModel_svm_m2_train, X_test_m2, y_test_m2)
+#performance metrics
 tunedModel_svm_m2_test_MAE = MAE(tunedModel_svm_m2_test, y_test_m2)
 tunedModel_svm_m2_test_RMSE = RMSE(tunedModel_svm_m2_test, y_test_m2)
 tunedModel_svm_m2_full_MAE = MAE(tunedModel_svm_m2, y_m2)
 tunedModel_svm_m2_full_RMSE = RMSE(tunedModel_svm_m2, y_m2)
 tunedModel_svm_m2_full_RMSEratio = tunedModel_svm_m2_full_RMSE/tunedModel_svm_m2_test_RMSE
 print(summary(tunedModel_svm_m2_full))
+```
+
+## 4.3 Model 1: ‘M1.svm.linear’
+
+``` r
+# full fitted
+tuneResult_svmLinear_m2_10k_full <- train(wsvha_L~.,data=faib_vri_true_m2_df,
+  trControl = model_training_10fold_parallel,
+  method = 'svmLinear', metric = 'RMSE', tuneLength = 10,
+  preProcess = c("BoxCox",'center', 'scale'))
+tunedModel_svmLinear_m2 = predict(tuneResult_svmLinear_m2_10k_full, data = faib_vri_true_m2_df)
+# train fitted
+tuneResult_svmLinear_m2_10k_train <- train(X_train_m2, y_train_m2,
+  trControl = model_training_10fold_parallel,
+  method = 'svmLinear', metric = 'RMSE', tuneLength = 10,
+  preProcess = c("BoxCox",'center', 'scale'))
+# test fitted
+tunedModel_svmLinear_m2_test = predict(tuneResult_svmLinear_m2_10k_train, data = test_m2)
+# performance metrics
+tunedModel_svmLinear_m2_test_MAE = mae(tunedModel_svmLinear_m2_test, test_m2$wsvha_L)
+tunedModel_svmLinear_m2_test_RMSE = rmse(tunedModel_svmLinear_m2_test, test_m2$wsvha_L)
+tunedModel_svmLinear_m2_MAE = mae(tunedModel_svmLinear_m2, faib_vri_true_m2_df$wsvha_L)
+tunedModel_svmLinear_m2_RMSE = rmse(tunedModel_svmLinear_m2, faib_vri_true_m2_df$wsvha_L)
+tunedModel_svmLinear_m2_RMSEratio = tunedModel_svmLinear_m2_RMSE/tunedModel_svmLinear_m2_test_RMSE
+```
+
+## 4.4 Model 1: ‘M1.glm.caret’
+
+``` r
+#full-fitted
+tuneResult_GLM_m2_full <- train(wsvha_L~., data=faib_vri_true_m2_df,
+  trControl = model_training_10fold_parallel,
+  method = 'glm', metric = 'RMSE', tuneLength = 10,
+  preProcess = c("BoxCox",'center', 'scale'))
+tunedModel_GLM_m2_full <- tuneResult_GLM_m2_full$finalModel
+tunedModel_GLM_m2 = predict(tunedModel_GLM_m2_full, data=faib_vri_true_m2_df, type = "response")
+#train-fitted
+tuneResult_GLM_m2_train <- train(wsvha_L ~., data=train_m2,
+  trControl = model_training_10fold_parallel,
+  method = 'glm', metric = 'RMSE', tuneLength = 10,
+  preProcess = c("BoxCox",'center', 'scale'))
+tunedModel_GLM_m2_train <- tuneResult_GLM_m2_train$finalModel
+#test-fitted
+tunedModel_GLM_m2_test = predict(tunedModel_GLM_m2_train, data = test_m2, type = "response")
+# performance metrics
+tunedModel_GLM_m2_test_MAE = mae(tunedModel_GLM_m2_test, test_m2$wsvha_L)
+tunedModel_GLM_m2_test_RMSE = rmse(tunedModel_GLM_m2_test, test_m2$wsvha_L)
+tunedModel_GLM_m2_full_MAE = mae(tunedModel_GLM_m2, faib_vri_true_m2_df$wsvha_L)
+tunedModel_GLM_m2_full_RMSE = rmse(tunedModel_GLM_m2, faib_vri_true_m2_df$wsvha_L)
+tunedModel_GLM_m2_full_RMSEratio = tunedModel_GLM_m2_full_RMSE/tunedModel_GLM_m2_test_RMSE
+print(summary(tunedModel_GLM_m2_full))
+```
+
+## 4.5 Model 1: ‘M1.RF.e1071’
+
+``` r
+# full-fitted
+tuneResult_rf_m2_full <- tune.randomForest(X_m2, y_m2,
+  mtry = c(2:10), ntree = 50,
+  tunecontrol = tune.control(sampling = "cross", cross = 10),
+  preProcess = c("BoxCox","center","scale"))
+tunedModel_rf_m2_full <- tuneResult_rf_m2_full$best.model
+save(tunedModel_rf_m2_full, file = "./Results/tunedModel_rf_m2_full.RData")
+tunedModel_rf_m2 = predict(tunedModel_rf_m2_full,X_m2, y_m2,type = "response")
+# train-fitted
+tuneResult_rf_m2_train <- tune.randomForest(X_train_m2, y_train_m2,
+  mtry = c(2:10), ntree = 50,
+  tunecontrol = tune.control(sampling = "cross", cross = 10),
+  preProcess = c("BoxCox","center","scale"))
+tunedModel_rf_m2_train <- tuneResult_rf_m2_train$best.model
+print(summary(tunedModel_rf_m2_train))
+# test-fitted
+tunedModel_rf_m2_test = predict(tunedModel_rf_m2_train, X_test_m2, y_test_m2, type="response")
+# performance metrics
+tunedModel_rf_m2_test_MAE = MAE(tunedModel_rf_m2_test, y_test_m2)
+tunedModel_rf_m2_test_RMSE = RMSE(tunedModel_rf_m2_test, y_test_m2)
+tunedModel_rf_m2_full_MAE = MAE(tunedModel_rf_m2, y_m2)
+tunedModel_rf_m2_full_RMSE = RMSE(tunedModel_rf_m2, y_m2)
+tunedModel_rf_m2_full_RMSEratio = tunedModel_rf_m2_full_RMSE/tunedModel_rf_m2_test_RMSE
+print(summary(tunedModel_rf_m2_full))
+```
+
+## 4.6 Model 1: ‘M1.RF.caret’
+
+``` r
+# full fitted
+tuneResult_rfCaret_m2_10k_full <- train(wsvha_L~.,
+  data=faib_vri_true_m2_df,
+  trControl = model_training_10fold_parallel,
+  method = 'rf', metric = 'RMSE', tuneLength = 10,
+  preProcess = c("BoxCox",'center', 'scale'))
+save(tunedModel_rfCaret_m2_10k, file = "./Results/tunedModel_rfCaret_m2_10k.RData")
+tunedModel_rfCaret_m2_10k = tuneResult_rfCaret_m2_10k_full$finalModel
+tunedModel_rfCaret_m2 = predict(tuneResult_rfCaret_m2_10k_full, data = faib_vri_true_m2_df)
+# train fitted
+tuneResult_rfCaret_m2_10k_train = train(
+  X_train_m2, y_train_m2,
+  trControl = model_training_10fold_parallel,
+  method = 'rf',
+  metric = 'RMSE',
+  tuneLength = 10,
+  preProcess = c("BoxCox",'center', 'scale'))
+#test fitted
+tunedModel_rfCaret_m2_test = predict(tuneResult_rfCaret_m2_10k_train, data = test_m2)
+# performance metrics
+tunedModel_rfCaret_m2_test_MAE = mae(tunedModel_rfCaret_m2_test, test_m2$wsvha_L)
+tunedModel_rfCaret_m2_test_RMSE = rmse(tunedModel_rfCaret_m2_test, test_m2$wsvha_L)
+tunedModel_rfCaret_m2_MAE = mae(tunedModel_rfCaret_m2, faib_vri_true_m2_df$wsvha_L)
+tunedModel_rfCaret_m2_RMSE = rmse(tunedModel_rfCaret_m2, faib_vri_true_m2_df$wsvha_L)
+tunedModel_rfCaret_m2_RMSEratio = tunedModel_rfCaret_m2_RMSE/tunedModel_rfCaret_m2_test_RMSE
+print(summary(tunedModel_rfCaret_m2))
+```
+
+## 4.7 Model 1: ‘M1.ensemble’
+
+``` r
+# model stack fitted
+model_list_m2_10k <- caretList(X_train_m2, y_train_m2,
+  trControl = model_training_10fold_parallel,
+  methodList = c('glm', 'svmLinear', 'rf'),
+  tuneLength=10, continue_on_fail = FALSE, 
+  preProcess = c('BoxCox', 'center','scale'))
+model_results_m2_10k <- data.frame(
+  GLM = min(model_list_m2_10k$glm$results$RMSE),
+  SVMLINEAR = min(model_list_m2_10k$svmLinear$results$RMSE),
+  RF = min(model_list_m2_10k$rf$results$RMSE))
+resamples_m2_10k = resamples(model_list_m2_10k)
+# model ensemble fitted
+stack_m2_10k = caretStack(model_list_m2_10k, 
+  method = 'glmnet', metric = 'RMSE', 
+  trControl = trainControl(method = "repeatedcv", 
+  savePredictions = "final", summaryFunction=defaultSummary), tuneLength=6)
+# performance metrics
+plot(stack_m2_10k)
+print(stack_m2_10k)
 ```
 
 # 5 Visualize
@@ -779,16 +945,38 @@ below for visual comparison.
 
 ``` r
 library(prettymapr)
-library(raster)
-tunedModel_svm_m2_to_raster <- predict(covs_m2, tunedModel_svm_m2_full)
-writeRaster(tunedModel_svm_m2_to_raster, filename = "./Results/tunedModel_svm_m2_to_raster.tif", overwrite=TRUE)
-
-tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_to_raster, main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
-  Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
-#title(main ="MAE:9.424\nRMSE:10.830\nRMSEratio:0.776\ngamma=0.5\nepsilon=0.10\nC=20", 
- #     adj = 0.05, line = -5, cex.main = 0.75)
+par(mfrow = c(2, 2)) 
+tunedModel_svm_m2_eps_to_raster <- predict(covs_m2, tunedModel_svm_m2_full_eps)
+writeRaster(tunedModel_svm_m2_eps_to_raster, filename = "./Results/Rasters/tunedModel_svm_m2_eps_to_raster.tif", format="GTiff")
+tunedModel_svm_m2_eps_to_raster_plot = plot(tunedModel_svm_m2_eps_to_raster, 
+  main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
+  Model 1: Support Vector Machine (Epsilon-tuned, Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
 addscalebar(plotepsg=3005)
+addnortharrow(pos = "topright", scale=0.75)
+
+tunedModel_svm_m2_to_raster <- predict(covs_m2, tunedModel_svm_m2_full)
+writeRaster(tunedModel_svm_m2_to_raster, filename = "./Results/Rasters/tunedModel_svm_m2_to_raster.tif", format="GTiff")
+tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_eps_to_raster, 
+  main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
+  Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line = -2)
+addscalebar(plotepsg=3153)
+addnortharrow(pos = "topright", scale=0.75)
+
+tunedModel_rf_m2_to_raster <- predict(covs_m2, tunedModel_rf_m2_full)
+writeRaster(tunedModel_rf_m2_to_raster, filename = "./Results/Rasters/tunedModel_rf_m2_to_raster.tif", format="GTiff")
+tunedModel_rf_m2_to_raster_plot = plot(tunedModel_rf_m2_to_raster, 
+  main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n 
+  Model 1: Random Forest Regression Tree (50 Branches Max)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
+addscalebar(plotepsg=3153)
+addnortharrow(pos = "topright", scale=0.75)
+
+caretensemble_m2_10k_to_raster <- predict(covs_m2, stack_m2_10k)
+writeRaster(caretensemble_m2_10k_to_raster, filename = "./Results/Rasters/caretensemble_m2_10k_to_raster.tif", format="GTiff")
+caretensemble_m2_10k_to_raster_plot = plot(caretensemble_m2_10k_to_raster,
+  main="Estimated Whole Stem Volume Gaspard (m3/ha)\n 
+  Model 1: Ensemble Elastic Net Regression (GLMnet)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
+addscalebar(plotepsg=3153)
 addnortharrow(pos = "topright", scale=0.75)
 ```
 
-![](0_EFI-TCC-modelling-pipeline_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+<img src="0_EFI-TCC-modelling-pipeline_files/figure-gfm/unnamed-chunk-21-1.png" width="50%" /><img src="0_EFI-TCC-modelling-pipeline_files/figure-gfm/unnamed-chunk-21-2.png" width="50%" /><img src="0_EFI-TCC-modelling-pipeline_files/figure-gfm/unnamed-chunk-21-3.png" width="50%" /><img src="0_EFI-TCC-modelling-pipeline_files/figure-gfm/unnamed-chunk-21-4.png" width="50%" />
