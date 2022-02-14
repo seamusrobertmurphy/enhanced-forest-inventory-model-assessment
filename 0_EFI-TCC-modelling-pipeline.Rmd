@@ -59,8 +59,9 @@ R doesn't seem to like interruptions during zip downloading so best to make sure
 
 \* Chapter 3 from Robin LoveLace's book 'Geocomputation in R' [link here](https://geocompr.robinlovelace.net/attr.html)
 
-```{r eval=TRUE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE}
+```{r eval=TRUE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, cache=FALSE}
 library(conflicted)
+conflict_prefer("select", "raster")
 library(sf)
 library(sp)
 library(dplyr)
@@ -103,7 +104,7 @@ species_class_sf = vri_species_aoi["species_class"]
 
 For rasteriize operations, we generated a spatRaster template and fitted using the line 'touches' argument to avoid any void edges. Two good resources on manipulating simple features available just below.
 
-```{r eval=TRUE, echo=TRUE, error=FALSE, fig.show="hold", message=FALSE, warning=FALSE, cache=TRUE, out.width="33%", cache=TRUE}
+```{r eval=TRUE, echo=TRUE, error=FALSE, fig.show="hold", message=FALSE, warning=FALSE, cache=FALSE, out.width="33%"}
 library(raster)
 library(terra)
 library(rgdal)
@@ -309,13 +310,13 @@ names(species) = "species_class"
 names(stems) = "stemsha_L"
 names(lead_htop) = "lead_htop"
 
-elev_raster = raster(elev)
-slope_raster = raster(slope)
-asp_cos_raster = raster(asp_cos)
-asp_sin_raster = raster(asp_sin)
-species_class_raster = raster(species)
-stemsha_L_raster = raster(stems)
-lead_htop_raster = raster(lead_htop)
+elev_raster = raster::raster(elev)
+slope_raster = raster::raster(slope)
+asp_cos_raster = raster::raster(asp_cos)
+asp_sin_raster = raster::raster(asp_sin)
+species_class_raster = raster::raster(species)
+stemsha_L_raster = raster::raster(stems)
+lead_htop_raster = raster::raster(lead_htop)
 
 #writeRaster(slope_raster, filename = "./Data/Raster_Covariates/slope_raster.tif", overwrite=TRUE)
 #writeRaster(asp_cos_raster, filename = "./Data/Raster_Covariates/asp_cos_raster.tif", overwrite=TRUE)
@@ -328,10 +329,10 @@ covs_m1 = stack(elev_raster, slope_raster, asp_cos_raster, asp_sin_raster,
 covs_m2 = stack(elev_raster,slope_raster, asp_cos_raster, asp_sin_raster, 
                 lead_htop_raster, species_class_raster)
 
-names(covs_m1)
-names(faib_vri_true_m1_df)
 names(covs_m2)
+names(covs_m1)
 names(faib_vri_true_m2_df)
+names(faib_vri_true_m1_df)
 ```
 
 # Transform

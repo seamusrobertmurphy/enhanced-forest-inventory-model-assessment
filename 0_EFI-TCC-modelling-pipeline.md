@@ -136,6 +136,7 @@ here](https://geocompr.robinlovelace.net/attr.html)
 
 ``` r
 library(conflicted)
+conflict_prefer("select", "raster")
 library(sf)
 library(sp)
 library(dplyr)
@@ -483,13 +484,13 @@ names(species) = "species_class"
 names(stems) = "stemsha_L"
 names(lead_htop) = "lead_htop"
 
-elev_raster = raster(elev)
-slope_raster = raster(slope)
-asp_cos_raster = raster(asp_cos)
-asp_sin_raster = raster(asp_sin)
-species_class_raster = raster(species)
-stemsha_L_raster = raster(stems)
-lead_htop_raster = raster(lead_htop)
+elev_raster = raster::raster(elev)
+slope_raster = raster::raster(slope)
+asp_cos_raster = raster::raster(asp_cos)
+asp_sin_raster = raster::raster(asp_sin)
+species_class_raster = raster::raster(species)
+stemsha_L_raster = raster::raster(stems)
+lead_htop_raster = raster::raster(lead_htop)
 
 #writeRaster(slope_raster, filename = "./Data/Raster_Covariates/slope_raster.tif", overwrite=TRUE)
 #writeRaster(asp_cos_raster, filename = "./Data/Raster_Covariates/asp_cos_raster.tif", overwrite=TRUE)
@@ -502,20 +503,6 @@ covs_m1 = stack(elev_raster, slope_raster, asp_cos_raster, asp_sin_raster,
 covs_m2 = stack(elev_raster,slope_raster, asp_cos_raster, asp_sin_raster, 
                 lead_htop_raster, species_class_raster)
 
-names(covs_m1)
-```
-
-    ## [1] "elev"          "slope"         "asp_cos"       "asp_sin"      
-    ## [5] "lead_htop"     "species_class" "stemsha_L"
-
-``` r
-names(faib_vri_true_m1_df)
-```
-
-    ## [1] "elev"          "slope"         "asp_cos"       "asp_sin"      
-    ## [5] "lead_htop"     "species_class" "stemsha_L"     "wsvha_L"
-
-``` r
 names(covs_m2)
 ```
 
@@ -523,11 +510,25 @@ names(covs_m2)
     ## [5] "lead_htop"     "species_class"
 
 ``` r
+names(covs_m1)
+```
+
+    ## [1] "elev"          "slope"         "asp_cos"       "asp_sin"      
+    ## [5] "lead_htop"     "species_class" "stemsha_L"
+
+``` r
 names(faib_vri_true_m2_df)
 ```
 
     ## [1] "elev"          "slope"         "asp_cos"       "asp_sin"      
     ## [5] "lead_htop"     "species_class" "wsvha_L"
+
+``` r
+names(faib_vri_true_m1_df)
+```
+
+    ## [1] "elev"          "slope"         "asp_cos"       "asp_sin"      
+    ## [5] "lead_htop"     "species_class" "stemsha_L"     "wsvha_L"
 
 # 3 Transform
 
