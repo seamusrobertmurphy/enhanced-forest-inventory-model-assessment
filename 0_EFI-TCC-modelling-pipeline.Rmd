@@ -3,29 +3,27 @@ title: 'Script Review: "0_EFI_CaretEnsemble_...R"'
 author: "SRM-LQ"
 date: "24/01/2022"
 output: 
-  html_document:
+  github_document:
     toc: TRUE
     toc_depth: 5
     number_sections: TRUE
     df_print: tibble
-    keep_md: TRUE
   zotero: TRUE
-  latex_engine: xelatex
-  
+
 bibliography: references.bib
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 library(knitr)
 library(rmarkdown)
 library(gitignore)
 library(pandocfilters)
 library(Rcpp)
 library(tinytex)
-#install json plug-in if needed:
+library(webdriver)
+library(webshot)
 #webshot::install_phantomjs(force = TRUE)
-#latex_engine: xelatex
 set.seed(23)
 ```
 
@@ -49,13 +47,20 @@ print(as_tibble(faib_psp), n = 10)
 #DT::datatable(faib_psp, rownames = FALSE, filter="top", options = list(pageLength = 5, scrollX=T))
 ```
 
-## Import AOI shapefile
+## Import AOI and VRI layers to derive bbox and species raster
 
-Some trial and error needed to find the working link for direct download+imports from the BC Geographic Warehouse (BCGW). You can find the working link through the auto-generated email sent from iMapBC with subject line 'assembled'. You need to open up the webpage that the emailed link forwards to and then copy the working link from your browser. In chrome, this takes a third step. Its easy once you look for the link that has the extension '.zip' at the end.
+For AOI shapefile downloads, you can find the working link for direct download+imports from the BC Geographic Warehouse (BCGW) through the auto-generated email sent from iMapBC with subject line 'assembled'. You need to open up the webpage that the emailed link forwards to and then copy the working link from your browser. In chrome, this takes a third step. Its easy once you look for the link that has the extension '.zip' at the end. Since the GeoBC provide temporary links with short life-span, I've also added code for using cloud links from Cabin account; that is in case client requires a complete click-and-play deliverable.
 
-Also, since the GeoBC provide temporary links with short life-span, I've also added code for using cloud links from Cabin account; that is in case client requires a complete click-and-play deliverable.
+For VRI downloads, instead of the BCGW custom menu, we used the permanent link to the static data source of the Vegetation Resources Inventory dataset here. This includes the usual GIS package of shapefiles and geodatabase which we transform into simple features, from which we then extract our target layers using the 'subset' function. It is useful to consider and treat simple features just as dataframe objects but with more features/information attached like sticky geometry, table rules or matrix indices. 
+
+R doesn't seem to like interruptions during zip downloading so best to make sure internet connection is steady or super fast. The VRI zip 'Rank 1" is 4.7GB. Same goes for provincial wildfire dataset, which was subsetted to include post-1999 fire occurances. One last thing to mention, after some trial and error I found that for any markdown rendering or long script reruns, dplyr and any other conflicting packages needs to be loaded last just before their operations and that all dplyr operations need to be contained within the same code chunk as below. Once a new package is laoded afterwards, dplyr becomes problematic and sends inccorrect error messages. A new package 'conflict' helps coerce the machine to the prompted package function that is followed by two colons
+
+\* Chapter 4 from Pebezma's manual on 'Simple Features in R' [link here](https://cran.r-project.org/web/packages/sf/vignettes/sf4.html)
+
+\* Chapter 3 from Robin LoveLace's book 'Geocomputation in R' [link here](https://geocompr.robinlovelace.net/attr.html)
 
 ```{r eval=TRUE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE}
+library(conflicted)
 library(sf)
 library(sp)
 library(dplyr)
@@ -64,25 +69,11 @@ library(dplyr)
   #            overwrite=TRUE)
 #zip_file_aoi = ("./Data/aoi_boundary.zip")
 #unzip(zip_file_aoi, exdir="./Data", overwrite = TRUE)
-aoi_sf <- read_sf("./Data/BCTS_OPERATING_AREAS_SP/BCTS_OP_AR_polygon.shp")
+aoi_sf = read_sf("./Data/BCTS_OPERATING_AREAS_SP/BCTS_OP_AR_polygon.shp")
 aoi_sf = rename(aoi_sf, AOI_Boundary = SHAPE)
 aoi_sf = aoi_sf[1, "AOI_Boundary"]
 plot(aoi_sf)
-```
 
-## Import VRI data and derive species, stems, and mask rasters
-
-Instead of the BCGW custom download, we used the permanent link to the static data source of the Vegetation Resources Inventory dataset here. This includes the usual GIS package of shapefiles and geodatabase which we transform into simple features, from which we then extract our target layers using the 'subset' function. It is useful to consider and treat simple features just as dataframe objects but with more features/information attached like sticky geometry, table rules or matrix indices. For rasteriize operations, we generated a spatRaster template and fitted using the line 'touches' argument to avoid any void edges. Two good resources on manipulating simple features available just below.
-
-Perhaps worth mentioning also that R doesn't seem to like interruptions during zip downloading so best to make sure internet connection is steady or super fast. The VRI zip 'Rank 1" is 4.7GB. Same goes for provincial wildfire dataset, which was subsetted to include post-1999 fire occurances.
-
-\* Chapter 4 from Pebezma's manual on 'Simple Features in R' [link here](https://cran.r-project.org/web/packages/sf/vignettes/sf4.html)
-
-\* Chapter 3 from Robin LoveLace's book 'Geocomputation in R' [link here](https://geocompr.robinlovelace.net/attr.html)
-
-```{r eval=TRUE, echo=TRUE, error=FALSE, fig.show="hold", message=FALSE, warning=FALSE, cache=TRUE, out.width="33%", cache=TRUE}
-library(raster)
-library(terra)
 #download.file(url = "https://pub.data.gov.bc.ca/datasets/02dba161-fdb7-48ae-a4bb-bd6ef017c36d/2019/VEG_COMP_LYR_R1_POLY_2019.gdb.zip", destfile = "./Data/vri_layers.zip", overwrite=TRUE)
 #zip_file_vri = ("./Data/vri_layers.zip")
 #unzip(zip_file_vri, exdir="./Data", overwrite = TRUE)
@@ -99,18 +90,23 @@ wildfire_aoi = wildfire_sf$FIRE_YEAR > 2000
 wildfire_aoi = st_intersection(st_make_valid(wildfire_sf), aoi_sf)
 vri_species_aoi = st_intersection(st_make_valid(vri_species), aoi_sf)
 vri_species_aoi$SPEC_CD_1 = as.factor(vri_species_aoi$SPEC_CD_1)
-vri_species_aoi =  filter(vri_species_aoi, SPEC_CD_1=='BL' | SPEC_CD_1=='FD' |SPEC_CD_1=='FDI' | SPEC_CD_1=='PL' | SPEC_CD_1=='PLI' | SPEC_CD_1=='SE' | SPEC_CD_1=='SW' | SPEC_CD_1=='SX')
-vri_species_aoi = rename(vri_species_aoi, species_class = SPEC_CD_1)
-vri_species_aoi$species_class = recode(vri_species_aoi$species_class, 
-      PL = 0, PLI = 0, SE = 1, SW = 1, SX = 1, FD = 2, FDI = 2, BL = 5)
+vri_species_aoi =  dplyr::filter(vri_species_aoi, SPEC_CD_1 == "PL" | SPEC_CD_1 == "SB" | SPEC_CD_1 == "SE" | 
+  SPEC_CD_1 == "SX" | SPEC_CD_1 == "FD" | SPEC_CD_1 == "CW" | SPEC_CD_1 == "HW" | SPEC_CD_1 == "BL")
+vri_species_aoi$species_class = dplyr::recode(vri_species_aoi$SPEC_CD_1, 
+             PL = 0, PLI = 0, SB = 1, SE = 1, SX = 1, FD = 2, FDI = 2,CW = 3, HW = 4, BL = 5)
 summary.factor(vri_species_aoi$species_class)
 vri_stemsha_aoi = st_intersection(st_make_valid(vri_stemsha), aoi_sf)
 vri_stemsha_aoi = rename(vri_stemsha_aoi, stemsha_L = LIVE_STEMS)
-
 stemsha_L_sf = vri_stemsha_aoi["stemsha_L"]
 species_class_sf = vri_species_aoi["species_class"]
+```
 
-# Terra package requires a spatRaster template to rasterize over
+For rasteriize operations, we generated a spatRaster template and fitted using the line 'touches' argument to avoid any void edges. Two good resources on manipulating simple features available just below.
+
+```{r eval=TRUE, echo=TRUE, error=FALSE, fig.show="hold", message=FALSE, warning=FALSE, cache=TRUE, out.width="33%", cache=TRUE}
+library(raster)
+library(terra)
+library(rgdal)
 raster_template = rast(ext(species_class_sf), resolution = 20, crs = st_crs(species_class_sf)$wkt)
 species_class_rast = rasterize(vect(species_class_sf), 
   raster_template, field = "species_class", touches = TRUE)
@@ -129,7 +125,6 @@ plot(mask_rast, main = "mask", col = "black", legend=FALSE)
 DEM raster tiles were downloaded from two zipped files. To speed up the markdown output, file.paths were assigned to a zip-directory and unzip-directory. Individual tiles were then assembled as list objects and prepared for merging through two steps. A object was first assigned to the folder location then a second list function was used to index the folder contents as a gridded object. Merging was passed through the *"do.call"* function to generate two raster mosaics, lead_htop and elevation, which were then write as single raster and saved in the Raster_Covariates subfolder. GDAL functions remain in the working script file for further review "0_EFI_CaretEnsemble_ModelTuned_RasterPredicted". See below:
 
 ```{r eval=TRUE, echo=TRUE, error=FALSE, fig.show="hold", message=FALSE, warning=FALSE, out.width="50%"}
-library(rgdal)
 # Unpack zipped downloads into assigned directory
 #zip_file_vh = ("./Data/VegHt.zip")
 #zip_file_be = ("./Data//BareEarth.zip")
@@ -195,7 +190,7 @@ To run the final ecosystem models and generate the predicted rasters, we need to
 faib_psp$spc_live1 = as.factor(faib_psp$spc_live1)
 faib_psp = subset(faib_psp, spc_live1 == "PL" | spc_live1 == "SB" | spc_live1 == "SE" | 
   spc_live1 == "SX" | spc_live1 == "FD" | spc_live1 == "CW" | spc_live1 == "HW" | spc_live1 == "BL")
-faib_psp$species_class = recode(faib_psp$spc_live1, 
+faib_psp$species_class = dplyr::recode(faib_psp$spc_live1, 
     PL = 0, SB = 1, SE = 1, SX = 1, FD = 2, CW = 3, HW = 4, BL = 5)
 faib_psp$asp_cos = cos((faib_psp$aspect * pi) / 180)
 faib_psp$asp_sin = sin((faib_psp$aspect * pi) / 180)
@@ -223,7 +218,6 @@ faib_vri_true_m1_df = na.omit(faib_vri_true_m1_df)
 faib_vri_true_m2_df = na.omit(faib_vri_true_m2_df)
 sum(is.na(faib_vri_true_m1_df))
 sum(is.na(faib_vri_true_m2_df))
-#DT::datatable(faib_vri_true_m2_df, rownames = FALSE, filter="top", options = list(pageLength = 5, scrollX=T))
 print(as_tibble(faib_vri_true_m2_df), n = 10)
 faib_vri_true_sf = st_as_sf(faib_psp, coords = c("bcalb_x", "bcalb_y"), crs = 3153)
 faib_vri_true_sp = as(faib_vri_true_sf, "Spatial")
@@ -268,13 +262,13 @@ mask = mask_rast
 
 crs(lead_htop) = "epsg:3005"
 lead_htop = aggregate(lead_htop, fact = 20, fun = mean) 
-slope = resample(slope, elev, method="bilinear")
-asp_cos = resample(asp_cos, elev, method="bilinear")
-asp_sin = resample(asp_sin, elev, method="bilinear")
-lead_htop = resample(lead_htop, elev, method="bilinear")
-species = resample(species, elev, method="near")
-stems = resample(stems, elev, method="bilinear")
-mask = resample(mask, elev, method="near")
+slope = terra::resample(slope, elev, method="bilinear")
+asp_cos = terra::resample(asp_cos, elev, method="bilinear")
+asp_sin = terra::resample(asp_sin, elev, method="bilinear")
+lead_htop = terra::resample(lead_htop, elev, method="bilinear")
+species = terra::resample(species, elev, method="near")
+stems = terra::resample(stems, elev, method="bilinear")
+mask = terra::resample(mask, elev, method="near")
 
 elev = mask(elev, vect(aoi_sf))
 lead_htop = mask(lead_htop, vect(aoi_sf))
@@ -307,7 +301,6 @@ plot(stems, main="Stems/ha")
 Spatial covariates were then transformed back from spatRasters to rasters and assembled as raster stacks (covs_m1 and covs_m2). Maybe worth checking again here the naming of rasters before converting and stacking. If needed, the following chunk can be used to rename spatRasters:
 
 ```{r eval=TRUE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, fig.show="hold", out.width="33%"}
-library(Rcpp)
 names(elev) = "elev"
 names(slope) = "slope"
 names(asp_cos) = "asp_cos"
@@ -323,6 +316,12 @@ asp_sin_raster = raster(asp_sin)
 species_class_raster = raster(species)
 stemsha_L_raster = raster(stems)
 lead_htop_raster = raster(lead_htop)
+
+#writeRaster(slope_raster, filename = "./Data/Raster_Covariates/slope_raster.tif", overwrite=TRUE)
+#writeRaster(asp_cos_raster, filename = "./Data/Raster_Covariates/asp_cos_raster.tif", overwrite=TRUE)
+#writeRaster(asp_sin_raster, filename = "./Data/Raster_Covariates/asp_sin_raster.tif", overwrite=TRUE)
+#writeRaster(species_class_raster, filename = "./Data/Raster_Covariates/species_class_raster.tif", overwrite=TRUE)
+#writeRaster(stemsha_L_raster, filename = "./Data/Raster_Covariates/stemsha_L_raster.tif", overwrite=TRUE)
 
 covs_m1 = stack(elev_raster, slope_raster, asp_cos_raster, asp_sin_raster, 
                 lead_htop_raster, species_class_raster,stemsha_L_raster)
@@ -466,16 +465,17 @@ Data transformations were implementated iteratively with each model fitting usin
 
 # Model
 
-Model 1 and model 2 were fitted with the ransformed 'pre-processed' permanent sample plot data and calibrated with nine different algorithms (Table 1). Models were trained using a 10 k-fold cross validation technique, which divided the dataset into 10 groups of 10 data blocks to generate aggregated estimates from across the 100 data folds. This was repeated 3 times with training folds starting at different origins each time.
+Model 1 and model 2 were fitted with the ransformed 'pre-processed' permanent sample plot data and calibrated with nine different algorithms (Table 1). Models were trained using a 10 k-fold cross validation technique, which divided the dataset into 10 groups of 10 data blocks to generate aggregated estimates from across the 100 data folds.
 
-Performance metrics were reported regarding Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and Root Mean Squared Ratio (RMSEratio) in order to account for overall model accuracy, level of model precision, and model bias, respectively.. Using these metrics, algorithms were optimized using hyper-parameter tuning (Table 1).
+Performance metrics were reported regarding Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and Root Mean Squared Ratio (RMSEratio) in order to account for overall model accuracy, level of model precision, and model bias, respectively. Using these metrics, algorithms were optimized using hyper-parameter tuning. An inital deployment of models An pilot deployment of 10k-fold model training and validation was first carried without any repeat training (Table 1). A second deployment was conducted to compare these results with 10k-fold-5repeats in which training folds were initiated from different fold origins during each repeat (Table 2).
 
-Two Support Vector Machine (SVM) algorithms were fitted with a radial and linear kernel, which were tuned using the same tuning grid that tested for optimal cost values in the range of between 1 and 20 and scanned for optimal gamma values between -1 and +1.  Random Forest (RF) models were calibrated with two hyperparameters using a grid search of Mtry between 2 and 10 variables at each split over two regression trees consisting of 50 and 500 decision branches. An EnsembleElastic 
-Net model was fitted with a generalized additive linearized model, which was tuned based on optomized results of three foundational models including linear model, 
+![Table 1: Hyperparameter tuning and model performance metrics; MAE: Mean absolute error, RMSE: Root squared mean error, RMSEratio: Root squared mean error ratio (RMSEfull/RMSEcv), Mtry: Number of variables at each split, Ntree: maximum number of decisions trees 𝜺 = Epsilon, 𝜸 = Gamma, C = Cost; 𝞪 = Alpha, ƛ = Lambda.](Data/models_table_calibri_feb10.png "Table 1")
+
+Two Support Vector Machine (SVM) algorithms were fitted with a radial and linear kernel, which were tuned using the same tuning grid that tested for optimal cost values in the range of between 1 and 20 and scanned for optimal gamma values between -1 and +1. Random Forest (RF) models were calibrated with two hyperparameters using a grid search of Mtry between 2 and 10 variables at each split over two regression trees consisting of 50 and 500 decision branches. An EnsembleElastic-Net model was fitted with a generalized additive linearized model, which was tuned based on optomized results of three foundational models including linear model,
 
 ## Model 1: 'M1.svm.radial'
 
-```{r eval=TRUE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
+```{r eval=FALSE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
 library(e1071)
 library(caret)
 library(caretEnsemble)
@@ -516,19 +516,32 @@ print(summary(tunedModel_svm_m2_full))
 
 # Visualize
 
-Four best-performing models, including the Random Forest 50-Tree model, the two Support Vector Radial Kernel models, and the Ensemble Elastic Net Model, were applied to covariate stacks and used to spatially predict a wsvha raster. Outputs were saved in GeoTiff format in the ‘Results’ local folder available on project drive and were presented below for visual comparison.
+Four best-performing models, including the Random Forest 50-Tree model, the two Support Vector Radial Kernel models, and the Ensemble Elastic Net Model, were applied to covariate stacks and used to spatially predict a wsvha raster. Outputs were saved in GeoTiff format in the 'Results' local folder available on project drive and were presented below for visual comparison.
 
-```{r eval=TRUE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
+```{r eval=FALSE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
 library(prettymapr)
+library(raster)
 tunedModel_svm_m2_to_raster <- predict(covs_m2, tunedModel_svm_m2_full)
 writeRaster(tunedModel_svm_m2_to_raster, filename = "./Results/tunedModel_svm_m2_to_raster.tif", overwrite=TRUE)
-tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_to_raster, 
-  main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
-  Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75)
-title(main ="MAE:9.424\nRMSE:10.830\nRMSEratio:0.776\ngamma=0.5\nepsilon=0.10\nC=20", 
-      adj = 0.05, line = -5, cex.main = 0.75)
+
+tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_to_raster, main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
+  Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
+#title(main ="MAE:9.424\nRMSE:10.830\nRMSEratio:0.776\ngamma=0.5\nepsilon=0.10\nC=20", 
+ #     adj = 0.05, line = -5, cex.main = 0.75)
 addscalebar(plotepsg=3005)
 addnortharrow(pos = "topright", scale=0.75)
-
 ```
 
+```{r eval=TRUE, echo=FALSE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
+library(prettymapr)
+library(raster)
+#tunedModel_svm_m2_to_raster <- predict(covs_m2, tunedModel_svm_m2_full)
+#writeRaster(tunedModel_svm_m2_to_raster, filename = "./Results/tunedModel_svm_m2_to_raster.tif", overwrite=TRUE)
+tunedModel_svm_m2_to_raster = raster::raster("./Results/Rasters/tunedModel_svm_m2_to_raster.tif")
+tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_to_raster, main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
+  Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
+#title(main ="MAE:9.424\nRMSE:10.830\nRMSEratio:0.776\ngamma=0.5\nepsilon=0.10\nC=20", 
+ #     adj = 0.05, line = -5, cex.main = 0.75)
+addscalebar(plotepsg=3005)
+addnortharrow(pos = "topright", scale=0.75)
+```
