@@ -2,12 +2,3 @@
 .Rhistory
 .RData
 .Ruserdata
-
-
-Data/
-Results/
-Models/
-*.csv
-*.tif
-*.zip
-*.tgz
