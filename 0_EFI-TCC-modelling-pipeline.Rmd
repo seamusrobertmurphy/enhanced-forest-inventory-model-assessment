@@ -474,7 +474,7 @@ Performance metrics were reported regarding Mean Absolute Error (MAE), Root Mean
 
 Two Support Vector Machine (SVM) algorithms were fitted with a radial and linear kernel, which were tuned using the same tuning grid that tested for optimal cost values in the range of between 1 and 20 and scanned for optimal gamma values between -1 and +1. Random Forest (RF) models were calibrated with two hyperparameters using a grid search of Mtry between 2 and 10 variables at each split over two regression trees consisting of 50 and 500 decision branches. An EnsembleElastic-Net model was fitted with a generalized additive linearized model, which was tuned based on optomized results of three foundational models including linear model,
 
-## Model 1: 'M1.svm.radial.𝝐'
+## Model 1: 'M1.svm.radial.*𝝐*'
 
 ```{r eval=FALSE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
 library(e1071)
@@ -482,6 +482,39 @@ library(caret)
 library(caretEnsemble)
 library(randomForest)
 library(DescTools)
+# full-fitted
+tuneResult_svm_m2_full_eps <- tune(svm, X_m2, y_m2,
+  ranges = list(epsilon = seq(0.02,0.1,0.2), cost = c(1,5,7,15,20), gamma = 2^(-1:1)),
+  tunecontrol = tune.control(cross = 10),
+  preProcess = c("BoxCox","center","scale"))
+tunedModel_svm_m2_full_eps <- tuneResult_svm_m2_full_eps$best.model
+save(tunedModel_svm_m2_full_eps, file = "./Results/tunedModel_svm_m2_full_eps.RData")
+tunedModel_svm_m2_eps = predict(
+  tunedModel_svm_m2_full_eps,
+  X_m2, y_m2)
+
+# train-fitted
+tuneResult_svm_m2_train_eps <- tune(svm, X_train_m2, y_train_m2,
+  ranges = list(epsilon = seq(0.02,0.1,0.2), cost = c(5,7,15,20), gamma = 2^(-1:1)),
+  tunecontrol = tune.control(cross = 10),
+  preProcess = c("BoxCox","center","scale"))
+tunedModel_svm_m2_train_eps <- tuneResult_svm_m2_train_eps$best.model
+# test-fitted
+tunedModel_svm_m2_test_eps = predict(
+  tuneResult_svm_m2_train_eps,
+  X_test_m2, y_test_m2)
+#performance metrics
+tunedModel_svm_m2_test_eps_MAE = MAE(tunedModel_svm_m2_test_eps, y_test_m2)
+tunedModel_svm_m2_test_eps_RMSE = RMSE(tunedModel_svm_m2_test_eps, y_test_m2)
+tunedModel_svm_m2_full_eps_MAE = MAE(tunedModel_svm_m2_eps, y_m2)
+tunedModel_svm_m2_full_eps_RMSE = RMSE(tunedModel_svm_m2_eps, y_m2)
+tunedModel_svm_m2_full_epsRMSEratio = tunedModel_svm_m2_full_eps_RMSE/tunedModel_svm_m2_test_eps_RMSE
+print(summary(tunedModel_svm_m2_full))
+```
+
+## Model 1: 'M1.svm.radial'
+
+```{r eval=FALSE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
 # full-fitted
 tuneResult_svm_m2_full <- tune(svm, X_m2, y_m2, 
   ranges = list(cost = c(1,5,7,15,20), gamma = 2^(-1:1)),
@@ -510,19 +543,44 @@ tunedModel_svm_m2_full_RMSEratio = tunedModel_svm_m2_full_RMSE/tunedModel_svm_m2
 print(summary(tunedModel_svm_m2_full))
 ```
 
-## Model 1: 'M1.svm.radial'
-
-
 ## Model 1: 'M1.svm.linear'
-
 
 ## Model 1: 'M1.glm.caret'
 
-
 ## Model 1: 'M1.RF.e1071'
 
-
 ## Model 1: 'M1.RF.caret'
+
+```{r eval=FALSE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
+# full fitted
+tuneResult_rfCaret_m2_10k_full <- train(wsvha_L~.,
+  data=faib_vri_true_m2_df,
+  trControl = model_training_10fold_parallel,
+  method = 'rf', metric = 'RMSE', tuneLength = 10,
+  preProcess = c("BoxCox",'center', 'scale'))
+save(tunedModel_rfCaret_m2_10k, file = "./Results/tunedModel_rfCaret_m2_10k.RData")
+tunedModel_rfCaret_m2_10k = tuneResult_rfCaret_m2_10k_full$finalModel
+tunedModel_rfCaret_m2 = predict(tuneResult_rfCaret_m2_10k_full, data = faib_vri_true_m2_df)
+# train fitted
+tuneResult_rfCaret_m2_10k_train = train(
+  X_train_m2, y_train_m2,
+  trControl = model_training_10fold_parallel,
+  method = 'rf',
+  metric = 'RMSE',
+  tuneLength = 10,
+  preProcess = c("BoxCox",'center', 'scale'))
+#test fitted
+tunedModel_rfCaret_m2_test = predict(tuneResult_rfCaret_m2_10k_train, data = test_m2)
+# performance metrics
+tunedModel_rfCaret_m2_test_MAE = mae(tunedModel_rfCaret_m2_test, test_m2$wsvha_L)
+tunedModel_rfCaret_m2_test_RMSE = rmse(tunedModel_rfCaret_m2_test, test_m2$wsvha_L)
+tunedModel_rfCaret_m2_MAE = mae(tunedModel_rfCaret_m2, faib_vri_true_m2_df$wsvha_L)
+tunedModel_rfCaret_m2_RMSE = rmse(tunedModel_rfCaret_m2, faib_vri_true_m2_df$wsvha_L)
+tunedModel_rfCaret_m2_RMSEratio = tunedModel_rfCaret_m2_RMSE/tunedModel_rfCaret_m2_test_RMSE
+print(summary(tunedModel_rfCaret_m2))
+```
+
+## Model 1: 'M1.ensemble'
 
 ```{r eval=FALSE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
 # full fitted
@@ -554,10 +612,6 @@ tunedModel_rfCaret_m2_MAE = mae(tunedModel_rfCaret_m2, faib_vri_true_m2_df$wsvha
 tunedModel_rfCaret_m2_RMSE = rmse(tunedModel_rfCaret_m2, faib_vri_true_m2_df$wsvha_L)
 tunedModel_rfCaret_m2_RMSE/tunedModel_rfCaret_m2_test_RMSE
 ```
-
-## Model 1: 'M1.ensemble'
-
-
 # Visualize
 
 Four best-performing models, including the Random Forest 50-Tree model, the two Support Vector Radial Kernel models, and the Ensemble Elastic Net Model, were applied to covariate stacks and used to spatially predict a wsvha raster. Outputs were saved in GeoTiff format in the 'Results' local folder available on project drive and were presented below for visual comparison.
