@@ -51,7 +51,7 @@ print(as_tibble(faib_psp), n = 10)
 
 For AOI shapefile downloads, you can find the working link for direct download+imports from the BC Geographic Warehouse (BCGW) through the auto-generated email sent from iMapBC with subject line 'assembled'. You need to open up the webpage that the emailed link forwards to and then copy the working link from your browser. In chrome, this takes a third step. Its easy once you look for the link that has the extension '.zip' at the end. Since the GeoBC provide temporary links with short life-span, I've also added code for using cloud links from Cabin account; that is in case client requires a complete click-and-play deliverable.
 
-For VRI downloads, instead of the BCGW custom menu, we used the permanent link to the static data source of the Vegetation Resources Inventory dataset here. This includes the usual GIS package of shapefiles and geodatabase which we transform into simple features, from which we then extract our target layers using the 'subset' function. It is useful to consider and treat simple features just as dataframe objects but with more features/information attached like sticky geometry, table rules or matrix indices. 
+For VRI downloads, instead of the BCGW custom menu, we used the permanent link to the static data source of the Vegetation Resources Inventory dataset here. This includes the usual GIS package of shapefiles and geodatabase which we transform into simple features, from which we then extract our target layers using the 'subset' function. It is useful to consider and treat simple features just as dataframe objects but with more features/information attached like sticky geometry, table rules or matrix indices.
 
 R doesn't seem to like interruptions during zip downloading so best to make sure internet connection is steady or super fast. The VRI zip 'Rank 1" is 4.7GB. Same goes for provincial wildfire dataset, which was subsetted to include post-1999 fire occurances. One last thing to mention, after some trial and error I found that for any markdown rendering or long script reruns, dplyr and any other conflicting packages needs to be loaded last just before their operations and that all dplyr operations need to be contained within the same code chunk as below. Once a new package is laoded afterwards, dplyr becomes problematic and sends inccorrect error messages. A new package 'conflict' helps coerce the machine to the prompted package function that is followed by two colons
 
@@ -460,7 +460,7 @@ car::residualPlots(elev_wsvha_lm, terms= ~ 1 | species_class, cex=0.1, pch=19)
 
 Six predictors exhibited non-normal distributions with left-leaning skewness (*W*, p\<0.001) and five predictors produced non-constant variance against the response variable (*B*, p\<0.001). Residuals showed increasing trends and patterns of funnelling that suggested anomalies were clustered among larger fitted values or among stands with higher wsvha values. In addition, significantly negative influences were observed by slope and stemsha on wsvha, while initial modelling generated negative value estimates confirming need for data normalizations (wsvha\<0.00m3/ha). In response, modelled data was treated with three Preprocess functions from the caret package. The 'center' method was used to subtract the mean of the predictors data from the predictor values and the 'scale' method was used to divide them by their standard deviation. A 'BoxCox' transformation applied an exponential lambda to positive values to coerce a Gaussian distribution as presented in the equation below:
 
-$X(\lambda)\begin{cases}\frac{x^{\lambda}-1}{\lambda} & \Leftrightarrow \lambda \neq 0\\\\logx & \Leftrightarrow \lambda = 0\end{cases}$
+$X(\\lambda)\\begin{cases}\\frac{x^{\\lambda}-1}{\\lambda} & \\Leftrightarrow \\lambda \\neq 0\\\\logx & \\Leftrightarrow \\lambda = 0\\end{cases}$
 
 Data transformations were implementated iteratively with each model fitting using 'caret' model tuning functions as shown in the following section.
 
@@ -470,11 +470,11 @@ Model 1 and model 2 were fitted with the ransformed 'pre-processed' permanent sa
 
 Performance metrics were reported regarding Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and Root Mean Squared Ratio (RMSEratio) in order to account for overall model accuracy, level of model precision, and model bias, respectively. Using these metrics, algorithms were optimized using hyper-parameter tuning. An inital deployment of models An pilot deployment of 10k-fold model training and validation was first carried without any repeat training (Table 1). A second deployment was conducted to compare these results with 10k-fold-5repeats in which training folds were initiated from different fold origins during each repeat (Table 2).
 
-![Table 1: Hyperparameter tuning and model performance metrics; MAE: Mean absolute error, RMSE: Root squared mean error, RMSEratio: Root squared mean error ratio (RMSEfull/RMSEcv), Mtry: Number of variables at each split, Ntree: maximum number of decisions trees 𝜺 = Epsilon, 𝜸 = Gamma, C = Cost; 𝞪 = Alpha, ƛ = Lambda.](Data/models_table_calibri_feb10.png "Table 1")
+![Table 1: Hyperparameter tuning and model performance metrics; MAE: Mean absolute error, RMSE: Root squared mean error, RMSEratio: Root squared mean error ratio (RMSEfull/RMSEcv), Mtry: Number of variables at each split, Ntree: maximum number of decisions trees 𝜺 = Epsilon, 𝜸 = Gamma, C = Cost; 𝞪 = Alpha, ƛ = Lambda.](0_EFI-TCC-modelling-pipeline_files/models_table_calibri_feb10.png "Table 1")
 
 Two Support Vector Machine (SVM) algorithms were fitted with a radial and linear kernel, which were tuned using the same tuning grid that tested for optimal cost values in the range of between 1 and 20 and scanned for optimal gamma values between -1 and +1. Random Forest (RF) models were calibrated with two hyperparameters using a grid search of Mtry between 2 and 10 variables at each split over two regression trees consisting of 50 and 500 decision branches. An EnsembleElastic-Net model was fitted with a generalized additive linearized model, which was tuned based on optomized results of three foundational models including linear model,
 
-## Model 1: 'M1.svm.radial'
+## Model 1: 'M1.svm.radial.𝝐'
 
 ```{r eval=FALSE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
 library(e1071)
@@ -482,7 +482,6 @@ library(caret)
 library(caretEnsemble)
 library(randomForest)
 library(DescTools)
-
 # full-fitted
 tuneResult_svm_m2_full <- tune(svm, X_m2, y_m2, 
   ranges = list(cost = c(1,5,7,15,20), gamma = 2^(-1:1)),
@@ -493,7 +492,6 @@ save(tunedModel_svm_m2_full, file = "./Models/tunedModel_svm_m2_full.RData")
 tunedModel_svm_m2 = predict(
   tunedModel_svm_m2_full,
   X_m2, y_m2)
-
 # train-fitted
 tuneResult_svm_m2_train <- tune(
   svm, X_train_m2, y_train_m2,
@@ -501,12 +499,9 @@ tuneResult_svm_m2_train <- tune(
   tunecontrol = tune.control(cross = 10,  nrepeat = 5),
   preProcess = c("BoxCox","center","scale"))
 tunedModel_svm_m2_train <- tuneResult_svm_m2_train$best.model
-
 # test-fitted
-tunedModel_svm_m2_test = predict(
-  tunedModel_svm_m2_train,
-  X_test_m2, y_test_m2)
-
+tunedModel_svm_m2_test = predict(tunedModel_svm_m2_train, X_test_m2, y_test_m2)
+#performance metrics
 tunedModel_svm_m2_test_MAE = MAE(tunedModel_svm_m2_test, y_test_m2)
 tunedModel_svm_m2_test_RMSE = RMSE(tunedModel_svm_m2_test, y_test_m2)
 tunedModel_svm_m2_full_MAE = MAE(tunedModel_svm_m2, y_m2)
@@ -515,21 +510,89 @@ tunedModel_svm_m2_full_RMSEratio = tunedModel_svm_m2_full_RMSE/tunedModel_svm_m2
 print(summary(tunedModel_svm_m2_full))
 ```
 
+## Model 1: 'M1.svm.radial'
+
+
+## Model 1: 'M1.svm.linear'
+
+
+## Model 1: 'M1.glm.caret'
+
+
+## Model 1: 'M1.RF.e1071'
+
+
+## Model 1: 'M1.RF.caret'
+
+```{r eval=FALSE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
+# full fitted
+tuneResult_rfCaret_m2_10k_full <- train(wsvha_L~.,
+  data=faib_vri_true_m2_df,
+  trControl = model_training_10fold_parallel,
+  method = 'rf',
+  metric = 'RMSE',
+  tuneLength = 10,
+  preProcess = c("BoxCox",'center', 'scale'))
+
+save(tunedModel_rfCaret_m2_10k, file = "./Results/tunedModel_rfCaret_m2_10k.RData")
+tunedModel_rfCaret_m2_10k = tuneResult_rfCaret_m2_10k_full$finalModel
+tunedModel_rfCaret_m2 = predict(tuneResult_rfCaret_m2_10k_full, data = faib_vri_true_m2_df)
+# train fitted
+tuneResult_rfCaret_m2_10k_train = train(
+  X_train_m2, y_train_m2,
+  trControl = model_training_10fold_parallel,
+  method = 'rf',
+  metric = 'RMSE',
+  tuneLength = 10,
+  preProcess = c("BoxCox",'center', 'scale'))
+#test fitted
+tunedModel_rfCaret_m2_test = predict(tuneResult_rfCaret_m2_10k_train, data = test_m2)
+# performance metrics
+tunedModel_rfCaret_m2_test_MAE = mae(tunedModel_rfCaret_m2_test, test_m2$wsvha_L)
+tunedModel_rfCaret_m2_test_RMSE = rmse(tunedModel_rfCaret_m2_test, test_m2$wsvha_L)
+tunedModel_rfCaret_m2_MAE = mae(tunedModel_rfCaret_m2, faib_vri_true_m2_df$wsvha_L)
+tunedModel_rfCaret_m2_RMSE = rmse(tunedModel_rfCaret_m2, faib_vri_true_m2_df$wsvha_L)
+tunedModel_rfCaret_m2_RMSE/tunedModel_rfCaret_m2_test_RMSE
+```
+
+## Model 1: 'M1.ensemble'
+
+
 # Visualize
 
 Four best-performing models, including the Random Forest 50-Tree model, the two Support Vector Radial Kernel models, and the Ensemble Elastic Net Model, were applied to covariate stacks and used to spatially predict a wsvha raster. Outputs were saved in GeoTiff format in the 'Results' local folder available on project drive and were presented below for visual comparison.
 
 ```{r eval=FALSE, echo=TRUE, error=FALSE, message=FALSE, warning=FALSE, include=TRUE, results='hide', cache=TRUE}
 library(prettymapr)
-library(raster)
-tunedModel_svm_m2_to_raster <- predict(covs_m2, tunedModel_svm_m2_full)
-writeRaster(tunedModel_svm_m2_to_raster, filename = "./Results/tunedModel_svm_m2_to_raster.tif", overwrite=TRUE)
-
-tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_to_raster, main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
-  Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
-#title(main ="MAE:9.424\nRMSE:10.830\nRMSEratio:0.776\ngamma=0.5\nepsilon=0.10\nC=20", 
- #     adj = 0.05, line = -5, cex.main = 0.75)
+par(mfrow = c(2, 2)) 
+tunedModel_svm_m2_eps_to_raster <- predict(covs_m2, tunedModel_svm_m2_full_eps)
+writeRaster(tunedModel_svm_m2_eps_to_raster, filename = "./Results/Rasters/tunedModel_svm_m2_eps_to_raster.tif", format="GTiff")
+tunedModel_svm_m2_eps_to_raster_plot = plot(tunedModel_svm_m2_eps_to_raster, 
+  main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
+  Model 1: Support Vector Machine (Epsilon-tuned, Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
 addscalebar(plotepsg=3005)
+addnortharrow(pos = "topright", scale=0.75)
+
+tunedModel_svm_m2_to_raster <- predict(covs_m2, tunedModel_svm_m2_full)
+writeRaster(tunedModel_svm_m2_to_raster, filename = "./Results/Raster/tunedModel_svm_m2_to_raster.tif", format="GTiff")
+tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_eps_to_raster, 
+  main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
+  Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line = -2)
+addscalebar(plotepsg=3153)
+addnortharrow(pos = "topright", scale=0.75)
+
+tunedModel_rf_m2_to_raster <- predict(covs_m2, tunedModel_rf_m2_full)
+writeRaster(tunedModel_rf_m2_to_raster, filename = "./Results/Rasters/tunedModel_rf_m2_to_raster.tif", overwrite=TRUE)
+tunedModel_rf_m2_to_raster_plot = plot(tunedModel_rf_m2_to_raster, 
+  main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n 
+  Model 1: Random Forest Regression Tree (50 Branches Max)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
+addscalebar(plotepsg=3153)
+addnortharrow(pos = "topright", scale=0.75)
+
+caretensemble_m2_10k_to_raster_plot = plot(caretensemble_m2_10k_to_raster,
+  main="Estimated Whole Stem Volume Gaspard (m3/ha)\n 
+  Model 1: Ensemble Elastic Net Regression (GLMnet)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
+addscalebar(plotepsg=3153)
 addnortharrow(pos = "topright", scale=0.75)
 ```
 
@@ -541,8 +604,6 @@ library(raster)
 tunedModel_svm_m2_to_raster = raster::raster("./Results/Rasters/tunedModel_svm_m2_to_raster.tif")
 tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_to_raster, main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
   Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
-#title(main ="MAE:9.424\nRMSE:10.830\nRMSEratio:0.776\ngamma=0.5\nepsilon=0.10\nC=20", 
- #     adj = 0.05, line = -5, cex.main = 0.75)
 addscalebar(plotepsg=3005)
 addnortharrow(pos = "topright", scale=0.75)
 ```
