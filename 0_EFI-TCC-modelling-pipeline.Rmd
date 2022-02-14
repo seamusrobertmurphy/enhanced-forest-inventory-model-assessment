@@ -3,11 +3,12 @@ title: 'Script Review: "0_EFI_CaretEnsemble_...R"'
 author: "SRM-LQ"
 date: "24/01/2022"
 output: 
-  github_document:
+  pdf_document:
     toc: TRUE
     toc_depth: 5
     number_sections: TRUE
     df_print: tibble
+    latex_engine: xelatex
   zotero: TRUE
 
 bibliography: references.bib
@@ -458,11 +459,7 @@ car::residualPlots(elev_wsvha_lm, terms= ~ 1 | species_class, cex=0.1, pch=19)
 
 ## Apply data transformations
 
-Six predictors exhibited non-normal distributions with left-leaning skewness (*W*, p\<0.001) and five predictors produced non-constant variance against the response variable (*B*, p\<0.001). Residuals showed increasing trends and patterns of funnelling that suggested anomalies were clustered among larger fitted values or among stands with higher wsvha values. In addition, significantly negative influences were observed by slope and stemsha on wsvha, while initial modelling generated negative value estimates confirming need for data normalizations (wsvha\<0.00m3/ha). In response, modelled data was treated with three Preprocess functions from the caret package. The 'center' method was used to subtract the mean of the predictors data from the predictor values and the 'scale' method was used to divide them by their standard deviation. A 'BoxCox' transformation applied an exponential lambda to positive values to coerce a Gaussian distribution as presented in the equation below:
-
-$X(\\lambda)\\begin{cases}\\frac{x^{\\lambda}-1}{\\lambda} & \\Leftrightarrow \\lambda \\neq 0\\\\logx & \\Leftrightarrow \\lambda = 0\\end{cases}$
-
-Data transformations were implementated iteratively with each model fitting using 'caret' model tuning functions as shown in the following section.
+Six predictors exhibited non-normal distributions with left-leaning skewness (*W*, p\<0.001) and five predictors produced non-constant variance against the response variable (*B*, p\<0.001). Residuals showed increasing trends and patterns of funnelling that suggested anomalies were clustered among larger fitted values or among stands with higher wsvha values. In addition, significantly negative influences were observed by slope and stemsha on wsvha, while initial modelling generated negative value estimates confirming need for data normalizations (wsvha\<0.00m3/ha). In response, modelled data was treated with three Preprocess functions from the caret package. The 'center' method was used to subtract the mean of the predictors data from the predictor values and the 'scale' method was used to divide them by their standard deviation. A 'BoxCox' transformation applied an exponential lambda to positive values to coerce a Gaussian distribution. Data transformations were implementated iteratively with each model fitting using 'caret' model tuning functions as shown in the following section.
 
 # Model
 
@@ -493,7 +490,6 @@ save(tunedModel_svm_m2_full_eps, file = "./Results/tunedModel_svm_m2_full_eps.RD
 tunedModel_svm_m2_eps = predict(
   tunedModel_svm_m2_full_eps,
   X_m2, y_m2)
-
 # train-fitted
 tuneResult_svm_m2_train_eps <- tune(svm, X_train_m2, y_train_m2,
   ranges = list(epsilon = seq(0.02,0.1,0.2), cost = c(5,7,15,20), gamma = 2^(-1:1)),
@@ -687,32 +683,24 @@ writeRaster(tunedModel_svm_m2_eps_to_raster, filename = "./Results/Rasters/tuned
 tunedModel_svm_m2_eps_to_raster_plot = plot(tunedModel_svm_m2_eps_to_raster, 
   main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
   Model 1: Support Vector Machine (Epsilon-tuned, Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
-addscalebar(plotepsg=3005)
-addnortharrow(pos = "topright", scale=0.75)
 
 tunedModel_svm_m2_to_raster <- predict(covs_m2, tunedModel_svm_m2_full)
 writeRaster(tunedModel_svm_m2_to_raster, filename = "./Results/Rasters/tunedModel_svm_m2_to_raster.tif", format="GTiff")
 tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_eps_to_raster, 
   main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
   Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line = -2)
-addscalebar(plotepsg=3153)
-addnortharrow(pos = "topright", scale=0.75)
 
 tunedModel_rf_m2_to_raster <- predict(covs_m2, tunedModel_rf_m2_full)
 writeRaster(tunedModel_rf_m2_to_raster, filename = "./Results/Rasters/tunedModel_rf_m2_to_raster.tif", format="GTiff")
 tunedModel_rf_m2_to_raster_plot = plot(tunedModel_rf_m2_to_raster, 
   main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n 
   Model 1: Random Forest Regression Tree (50 Branches Max)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
-addscalebar(plotepsg=3153)
-addnortharrow(pos = "topright", scale=0.75)
 
 caretensemble_m2_10k_to_raster <- predict(covs_m2, stack_m2_10k)
 writeRaster(caretensemble_m2_10k_to_raster, filename = "./Results/Rasters/caretensemble_m2_10k_to_raster.tif", format="GTiff")
 caretensemble_m2_10k_to_raster_plot = plot(caretensemble_m2_10k_to_raster,
   main="Estimated Whole Stem Volume Gaspard (m3/ha)\n 
   Model 1: Ensemble Elastic Net Regression (GLMnet)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
-addscalebar(plotepsg=3153)
-addnortharrow(pos = "topright", scale=0.75)
 ```
 
 ```{r eval=TRUE, echo=FALSE, error=FALSE, message=FALSE, warning=FALSE, fig.show='hold', out.width="50%", include=TRUE, results='hide', cache=TRUE}
@@ -725,24 +713,16 @@ caretensemble_m2_10k_to_raster = raster("./Results/Rasters/caretensemble_m2_10k_
 tunedModel_svm_m2_eps_to_raster_plot = plot(tunedModel_svm_m2_eps_to_raster, 
   main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
   Model 1: Support Vector Machine (Epsilon-tuned, Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
-addscalebar(plotepsg=3005)
-addnortharrow(pos = "topright", scale=0.75)
 
 tunedModel_svm_m2_to_raster_plot = plot(tunedModel_svm_m2_to_raster, 
   main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n
   Model 1: Support Vector Machine (Radial Kernel)\n10k-fold Cross-Validated", cex.main = 0.75, line = -2)
-addscalebar(plotepsg=3153)
-addnortharrow(pos = "topright", scale=0.75)
 
 tunedModel_rf_m2_to_raster_plot = plot(tunedModel_rf_m2_to_raster, 
   main= "Estimated Whole Stem Volume Gaspard OA (m3/ha)\n 
   Model 1: Random Forest Regression Tree (50 Branches Max)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
-addscalebar(plotepsg=3153)
-addnortharrow(pos = "topright", scale=0.75)
 
 caretensemble_m2_10k_to_raster_plot = plot(caretensemble_m2_10k_to_raster,
   main="Estimated Whole Stem Volume Gaspard (m3/ha)\n 
   Model 1: Ensemble Elastic Net Regression (GLMnet)\n10k-fold Cross-Validated", cex.main = 0.75, line= -2)
-addscalebar(plotepsg=3153)
-addnortharrow(pos = "topright", scale=0.75)
 ```
